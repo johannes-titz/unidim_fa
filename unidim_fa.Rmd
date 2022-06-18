@@ -1,0 +1,329 @@
+---
+title: "Why factor analysis is a poor test of unidimensionality"
+author: "Johannes Titz"
+date: "2/23/2022"
+output: 
+  pdf_document: 
+    fig_caption: yes
+    latex_engine: lualatex
+    keep_tex: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, cache = TRUE,
+                      dev = c("cairo_pdf", "png"),
+                      fig.path = "plots/tm",
+                      dev.args = list(antialias = "subpixel"),
+                      dpi = 300,
+                      echo = TRUE,
+                      fig.height = 4.365, fig.width = 4.85,
+                      options(width = 82))
+```
+
+# Prepare
+
+```{r prepare}
+library(partitions)
+library(tidyverse)
+library(psych)
+zys <- function(a, b, c, d) {
+  n <- a + b + c + d
+  e <- 2 * b * c
+  exp_e <- 0.5 * n^2 * (1 - ((a + c)^2 + (b + d)^2) / n^2) *
+      (1 - ((a + b)^2 + (c + d)^2) / n^2)
+  1 - e / exp_e
+}
+get_h <- function(c, n, r, a, d) {
+  1 - c^2 * n^2 * r^2 / (a * d - c^2)^2
+}
+# create vectors from confusion matrix
+vec_from_tbl <- function(a, b, c, d) {
+  mtrx <- matrix(c(a, b, c, d), ncol = 2)
+  v1 <- rep(c(0, 1), colSums(mtrx))
+  v2 <- rep(c(0, 1), rowSums(mtrx))
+  cbind(v1, v2)
+}
+```
+
+## Binary Variables
+
+### Generate Data
+
+```{r generate}
+n <- 50
+# all combos, even the ones where phi is NA
+grid <- as.matrix(t(compositions(n = n, m = 4)))
+colnames(grid) <- paste0("Var", 1:4)
+# for case 1
+grid <- as_tibble(grid) %>%
+  rowwise() %>%
+  mutate(tetrachor = tetrachoric(c(Var1, Var2, Var3, Var4), correct=0)$rho,
+         tetrachor_corrected = tetrachoric(c(Var1, Var2, Var3, Var4))$rho,
+tetrachora = cos(pi*sqrt(Var2*Var3) / (sqrt(Var1*Var4) + sqrt(Var2*Var3))),
+phi = phi(c(Var1, Var2, Var3, Var4), digits = 5),
+         errors = Var3,
+         expected_errors = (Var1 + Var3) * (Var3 + Var4) / n,
+         h = 1 - errors / expected_errors,
+         hz = zys(Var1, Var2, Var3, Var4))
+```
+
+```{r filter}
+grid2 <-  grid %>%
+  filter(Var3 == 0) # only unidimensional
+grid3 <- grid %>%
+  filter(phi >= 0, Var2 >= Var3) # error cell is b 
+```
+
+### Plots
+
+This plot should be enough for a publication:
+
+```{r phihs}
+ggplot(grid3, aes(phi, h)) + geom_point(alpha=0.2) +
+  theme_classic()
+```
+
+Some additional plots:
+
+As long as the sample size is not restricted, every correlation is possible. For $N=100$:
+
+todo: add explanation with arrow to one b, c=0
+
+```{r, unidimphi}
+pos_c <- grid2 %>%
+  filter(!is.na(phi)) %>%
+  group_by(Var1, Var2) %>%
+  summarize(min_phi = min(phi, na.rm = T)) %>%
+  slice(which.min(min_phi))
+
+p1 <- ggplot(grid2, aes(Var1, phi, color = Var4, group = Var2)) +
+  geom_point(size = 1) + theme_classic() + geom_line() +
+  scale_color_continuous(name = "d", low = "darkgray", high = "black") + 
+  scale_x_continuous(name="a")
+
+p1 + geom_text(data=pos_c, mapping=aes(Var1-0.01, min_phi-0.015, color=NULL, label = Var2))
+```
+
+### tetrachoric correlation
+
+```{r unidimtetra}
+pos_c <- grid2 %>% 
+  filter(!is.na(tetrachor)) %>%
+  group_by(Var1, Var2) %>%
+  summarize(min_phi = min(tetrachor, na.rm=T)) %>%
+  slice(which.min(min_phi))
+
+ggplot(grid2, aes(Var1, tetrachor, col = Var3)) + 
+  geom_point() + theme_classic()
+
+p1 <- ggplot(grid2, aes(Var1, tetrachor, color = Var4, group = Var2)) + 
+  geom_point(size = 1) + theme_classic() + geom_line() +
+  scale_color_continuous(name = "d", low = "darkgray", high = "black") + 
+  scale_x_continuous(name="a")
+
+p1 + geom_text(data=pos_c, mapping=aes(Var1-0.02, min_phi-0.03, color=NULL, label = Var2))
+```
+
+### FA model
+
+Now, it is not hard to create unidimensional model that results in a perfect bifactor solution with factor analysis: 
+
+```{r}
+m1 <- vec_from_tbl(10, 80, 0, 10)
+m2 <- vec_from_tbl(11, 78, 0, 11)
+m3 <- vec_from_tbl(15, 70, 0, 15)
+
+d <- cbind(m1, m2, m3[, -2])
+ncol <- ncol(d)
+colnames(d) <- paste("Item", seq(ncol(d)))
+f1 <- factanal(d, 1)
+f2 <- factanal(d, 2)
+print(xtable::xtable(cbind(f1$loadings, f2$loadings)), file = "tables/fa1b.tex", booktabs = T)
+combs <- Map(function(x, y) table(d[, x], d[, y]), rep(1:ncol, each = ncol), rep(1:ncol, ncol))
+lower <- seq(1, 21, 5)
+upper <- seq(5, 25, 5)
+res <- Map(function(x, y) Reduce(cbind, combs[x:y]),
+    lower, upper)
+res2 <- Reduce(rbind, res)
+colnames(res2) <- paste0("$", rep(1:5, each = 2), "_", c(0, 1), "$")
+rownames(res2) <- paste0("$", rep(1:5, each = 2), "_", c(0, 1), "$")
+print(xtable::xtable(res2), booktabs = T, file = "tables/fa1.tex",
+sanitize.text.function=function(x){x})
+patterns <- table(apply(d, 1, paste, collapse = ""))
+```
+
+## second simulation
+
+```{r}
+ggplot(grid3, aes(phi, errors)) + geom_point(alpha=0.2) +
+  theme_classic()
+```
+
+
+```{r phihsupper}
+grid3b <- grid3 %>% filter(Var3 == 1, Var1 == Var4)
+ggplot(grid3b, aes(phi, h)) + geom_point(alpha=0.2) +
+  theme_classic()
+```
+
+```{r phihz}
+ggplot(grid3, aes(phi, hz)) + geom_point(alpha = 0.2) +
+  theme_classic()
+```
+
+```{r tetrah}
+grid_tet <- grid %>%
+  filter(tetrachor >= 0, Var2 >= Var3)
+grid_tetc <- grid %>%
+  filter(tetrachor_corrected >= 0, Var2 >= Var3)
+ggplot(grid_tet, aes(tetrachor, h)) + geom_point(alpha = 0.2) +
+  theme_classic()
+ggplot(grid_tetc, aes(tetrachor_corrected, h)) + geom_point(alpha = 0.2) +
+  theme_classic()
+```
+
+```{r tetraha}
+grid_tet <- grid %>% filter(tetrachora >=0, Var2 >= Var3)
+ggplot(grid_tet, aes(tetrachora, h)) + geom_point(alpha=0.2) +
+  theme_classic() 
+```
+
+```{r tetrahz}
+ggplot(grid_tet, aes(tetrachor, hz)) + geom_point(alpha=0.2) +
+  theme_classic() 
+```
+
+##  relationship errors and phi
+
+```{r}
+maxe <- grid3 %>% group_by(errors) %>% summarize(max_phi = max(phi))
+plot(maxe$max_phi, maxe$errors)
+m1 <-  lm(errors/n~max_phi, data = maxe)
+summary(m1)
+```
+
+Wenn r=0 u. r =1
+e/N = b0+b1*r
+0 = b0+b1*1
+1/4 = b0+0
+
+Wenn r=1, dann alles auf diagonale ad, wenn r=0, alles gleich verteilt. es gilt bc <= ad (nur positive korrelationen!). es gilt b>=c (in der Zeile ist das einfachere Item).
+
+# three item categories 
+
+todo: run on server to get more values?
+
+```{r poly}
+librarian::shelf(partitions)
+test <- t(compositions(n = 12, m = 9))
+dim(test)
+create_d <- function(f){
+  cols <- colSums(matrix(f, nrow = 3))
+  rows <- rowSums(matrix(f, nrow = 3))
+  # every item category should have at least one value
+  # debatable
+#  if (any(cols==0) | any(rows==0)) return(NA)
+#  if (sum(f > 0) <2) return(NA)
+  v1 <- rep(1:3, cols)
+  v2 <- rep(rep(1:3, 3), f)
+  return(cbind(v1, v2))
+}
+
+# ugly with for loop 
+l <- list()
+for (i in seq(nrow(test))) {
+  d  <- create_d(test[i,])
+  l[[i]] <- d
+}
+
+l2 <- l[!is.na(l)] # omit NA
+
+get_hz <- function(d) {
+  act <- sum(zysno:::get_errors_for_one_item_pair(d))
+  exp <- zysno:::get_expected_errors(d)
+  cor <- cor(d)[1,2]
+  if (!is.na(cor)) {
+        tetrachor <- polychoric(d, correct = F)$rho[1,2] # takes forever
+} else tetrachor <- NA
+  return(data.frame(cor=cor, hz = 1-act/exp, act = act, tetrachor = tetrachor))
+}
+librarian::shelf(pbapply)
+hz <- pbapply::pblapply(l2, get_hz)
+#hz <- parallel::mclapply(l2, get_hz)
+df <- plyr::ldply(hz, "data.frame")
+df <- df[df$cor > 0,]
+plot(df$cor, df$hz)
+plot(df$tetrachor, df$hz)
+```
+
+Homogenity index can become negative. should it be set to 0 then?
+
+Create an example for FA, which is undimensional but produces two factors
+
+```{r}
+df[df$hz==1 & df$cor<0.25,]
+table(as.data.frame(l2[[11858]]))
+```
+
+## relationship homogenity zsyno
+
+when b==c, we get the minimal hz value (most errors)
+
+```{r}
+grid3b <- grid3 %>% 
+  filter(Var2==Var3)#, Var2 == 1)
+head(grid3b[,-5])
+plot(grid3b$phi, grid3b$hz)
+head(grid3b)
+grid3b
+```
+
+# appendix
+
+## dichotomisierung
+
+Frage: können wir Korrelation und Fehler aus dichotomisierten Items konstruieren?
+
+Anscheinend nicht, denn orthogonale Variablen müssen nicht mit 0 korrelieren? Sehr merkwürdig! Zwar ist dann im linearen Modell die Korrelation korrekt, aber aus den einzelnen Dummy-Variablen ist das nicht ersichtlich.
+
+```{r}
+v1 <- psych::dummy.code(zysno47[,1])
+v2 <- psych::dummy.code(zysno47[,2])
+cor(v1)
+cor(zysno47) # 0.74
+summary(lm(zysno47[,2]~v1[,1]+v1[,2]))
+sqrt(0.5499) # 0.74
+```
+
+## some tries with 3d plots
+
+```{r, eval=F}
+librarian::shelf(plotly)
+librarian::shelf(AckerDWM/gg3D)
+librarian::shelf(rayshader)
+options(browser="firefox")
+set.seed(417)
+library(plotly)
+temp <- rnorm(100, mean=30, sd=5)
+pressure <- rnorm(100)
+dtime <- 1:100
+
+plot_ly(grid2, x=~Var1, y=~Var4, z=~phi, mode="markers", color=~Var2,
+        size = 1)#  %>% group_by(Var4) %>% add_lines()
+
+ggplot(grid2, aes(x=Var1, y = Var4, z = phi, colour = Var2))+
+  axes_3D() +
+  stat_3D()
+
+mtplot = ggplot(mtcars, aes(x = mpg, y = disp, group = gear, color = cyl)) + 
+  geom_point() + geom_line()+
+  scale_color_continuous(limits = c(0, 8))
+mtplot
+#par(mfrow = c(1, 2))
+#plot_gg(mtplot, width = 3.5, raytrace = FALSE, preview = TRUE)
+
+plot_gg(mtplot, multicore = TRUE)#, width = 3.5, multicore = TRUE, 
+        zoom = 0.85, phi = 35, theta = 30, sunangle = 225, soliddepth = -100)
+Sys.sleep(0.2)
+render_snapshot(clear = TRUE)
+```
