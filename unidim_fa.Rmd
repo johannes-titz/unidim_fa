@@ -245,16 +245,6 @@ create_d <- function(f) {
   v2 <- rep(rep(1:4, 4), f)
   return(cbind(v1, v2))
 }
-
-# ugly with for loop
-l <- list()
-for (i in seq(nrow(test))) {
-  d  <- create_d(test[i, ])
-  l[[i]] <- d
-}
-
-l2 <- l[!is.na(l)] # omit NA
-
 get_hz <- function(d) {
   pboptions(type="none")
   hz <- zysnotize(d)$scalability
@@ -265,20 +255,24 @@ get_hz <- function(d) {
   } else {
     tetrachor <- NA
   }
-  return(data.frame(cor, hz, tetrachor = tetrachor))
+  return(c(cor, hz, tetrachor = tetrachor))
 }
 
-xfun::cache_rds({
-  hz <- pblapply(l2, get_hz, cl = cores)
+res <- xfun::cache_rds({
+  pblapply(seq(nrow(test)), function(x) get_hz(create_d(test[x, ])), cl = cores)
 })
-df <- ldply(hz, "data.frame")
-df <- apply(df, 2, round, 2)
-df1 <- distinct(df[, 1:2])
-df2 <- distinct(df[, c(1, 3)])
-df1 <- df1[df1$cor >= 0, ]
-df2 <- df2[df2$tetrachor >= 0, ]
-plot(df1$cor, df1$hz)
-plot(df2$tetrachor, df2$hz)
+
+#l2 <- l[!is.na(l)] # omit NA
+
+resm <- matrix(unlist(res), ncol = 3, byrow = T)
+
+df <- apply(resm, 2, round, 2)
+df1 <- df[!duplicated(df[, 1:2]), ]
+df2 <- df[!duplicated(df[, c(1:3)]), ]
+df1 <- df1[df1[,1] >= 0, ]
+df2 <- df2[df2[,3] >= 0, ]
+plot(df1[,1], df1[,2])
+plot(df2[,3], df2[,2])
 ```
 
 Homogenity index can become negative. should it be set to 0 then?
