@@ -168,7 +168,7 @@ patterns <- table(apply(d, 1, paste, collapse = ""))
 ## second simulation
 
 ```{r}
-ggplot(grid_row, aes(phi, errors/n) + geom_point(alpha=0.2) +
+ggplot(grid_row, aes(phi, errors)) + geom_point(alpha=0.2) +
   theme_classic()
 ```
 
@@ -178,8 +178,6 @@ Warum es keine gute Idee ist nur die rohen Fehler zu nehmen. Maximale Fehleranza
 ggplot(grid_row, aes(phi, Var2*Var3/n^2)) + geom_point(alpha=0.2) +
   theme_classic()
 ```
-
-
 
 ```{r phihsupper}
 grid_rowb <- grid_row %>% filter(Var3 == 1, Var1 == Var4)
