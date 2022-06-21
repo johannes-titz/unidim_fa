@@ -79,7 +79,7 @@ grid <- xfun::cache_rds({
     function(x) suppressWarnings(tetrachoric(x, correct = 0.5)$rho)
   )
   cbind(grid, phi, tetrachor, tetrachor_corrected)
-})
+}, file = "sim1")
 grid <- as_tibble(grid)
 ```
 
@@ -260,7 +260,7 @@ get_hz <- function(d) {
 
 res <- xfun::cache_rds({
   pblapply(seq(nrow(test)), function(x) get_hz(create_d(test[x, ])), cl = cores)
-})
+}, file = "sim2")
 
 #l2 <- l[!is.na(l)] # omit NA
 
