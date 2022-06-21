@@ -246,33 +246,33 @@ create_d <- function(f) {
   return(cbind(v1, v2))
 }
 get_hz <- function(d) {
-  pboptions(type="none")
+  pboptions(type = "none")
   hz <- zysnotize(d)$scalability
-  pboptions(type="txt")
-  cor <- cor(d)[1,2]
+  pboptions(type = "txt")
+  cor <- cor(d)[1, 2]
   if (!is.na(cor)) {
-        tetrachor <- polychoric(d, correct = F)$rho[1,2] # takes forever
+        tetrachor <- polychoric(d, correct = FALSE)$rho[1, 2]
+        tetrachor_corrected <- polychoric(d)$rho[1, 2]
   } else {
     tetrachor <- NA
+    tetrachor_corrected <- NA
   }
-  return(c(cor, hz, tetrachor = tetrachor))
+  return(c(cor, hz, tetrachor, tetrachor_corrected))
 }
 
 res <- xfun::cache_rds({
   pblapply(seq(nrow(test)), function(x) get_hz(create_d(test[x, ])), cl = cores)
-}, file = "sim2")
-
-#l2 <- l[!is.na(l)] # omit NA
+}, file = "sim2", rerun = TRUE)
 
 resm <- matrix(unlist(res), ncol = 3, byrow = T)
 
 df <- apply(resm, 2, round, 2)
 df1 <- df[!duplicated(df[, 1:2]), ]
 df2 <- df[!duplicated(df[, c(1:3)]), ]
-df1 <- df1[df1[,1] >= 0, ]
-df2 <- df2[df2[,3] >= 0, ]
-plot(df1[,1], df1[,2])
-plot(df2[,3], df2[,2])
+df1 <- df1[df1[, 1] >= 0, ]
+df2 <- df2[df2[, 3] >= 0, ]
+plot(df1[, 1], df1[, 2])
+plot(df2[, 3], df2[, 2])
 ```
 
 Homogenity index can become negative. should it be set to 0 then?
