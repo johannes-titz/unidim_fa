@@ -129,15 +129,12 @@ pos_c <- grid_unidim %>%
   dplyr::summarize(min_phi = min(tetrachor, na.rm=T)) %>%
   slice(which.min(min_phi))
 
-ggplot(grid_unidim, aes(Var1, tetrachor, col = Var3)) + 
-  geom_point() + theme_classic()
-
 p1 <- ggplot(grid_unidim, aes(Var1, tetrachor, color = Var4, group = Var2)) + 
   geom_point(size = 1) + theme_classic() + geom_line() +
   scale_color_continuous(name = "d", low = "darkgray", high = "black") + 
   scale_x_continuous(name="a")
 
-p1 + geom_text(data=pos_c, mapping=aes(Var1-0.02, min_phi-0.03, color=NULL, label = Var2))
+p1 + geom_text(data=pos_c, mapping=aes(Var1-0.02, min_phi, color=NULL, label = Var2))
 ```
 
 ### FA model
@@ -171,9 +168,18 @@ patterns <- table(apply(d, 1, paste, collapse = ""))
 ## second simulation
 
 ```{r}
-ggplot(grid_row, aes(phi, errors)) + geom_point(alpha=0.2) +
+ggplot(grid_row, aes(phi, errors/n) + geom_point(alpha=0.2) +
   theme_classic()
 ```
+
+Warum es keine gute Idee ist nur die rohen Fehler zu nehmen. Maximale Fehleranzahl ist gerade mal 6.25%:
+
+```{r}
+ggplot(grid_row, aes(phi, Var2*Var3/n^2)) + geom_point(alpha=0.2) +
+  theme_classic()
+```
+
+
 
 ```{r phihsupper}
 grid_rowb <- grid_row %>% filter(Var3 == 1, Var1 == Var4)
