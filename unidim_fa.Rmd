@@ -172,10 +172,10 @@ ggplot(grid_row, aes(phi, errors)) + geom_point(alpha=0.2) +
   theme_classic()
 ```
 
-Warum es keine gute Idee ist nur die rohen Fehler zu nehmen. Maximale Fehleranzahl ist gerade mal 6.25%:
+Warum es keine gute Idee ist nur die rohen Fehler zu nehmen. Maximale Fehleranzahl ist gerade mal 6.25%, außer man relativiert an der maximalen Fehlerzahl! Da es eine positive Korrelation ist, ist der Grenzwert 1/4 für r=0. 1/4 x 1/4 = 0.0625.
 
 ```{r}
-ggplot(grid_row, aes(phi, Var2*Var3/n^2)) + geom_point(alpha=0.2) +
+ggplot(grid_row, aes(phi, (Var2*Var3/n^2)/0.0625)) + geom_point(alpha=0.2) +
   theme_classic()
 ```
 
