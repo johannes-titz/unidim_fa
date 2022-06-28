@@ -232,6 +232,8 @@ Wenn r=1, dann alles auf diagonale ad, wenn r=0, alles gleich verteilt. es gilt 
 
 todo: run on server to get more values?
 
+Problem with H value is that we need to find the error cells first, this takes some additional time. But seems to be ok overall.
+
 ```{r poly, cache = F}
 shelf(partitions)
 test <- t(compositions(n = 10, m = 16))
@@ -249,24 +251,35 @@ create_d <- function(f) {
   v2 <- rep(rep(1:4, 4), f)
   return(cbind(v1, v2))
 }
-get_hz <- function(d) {
+get_values <- function(d) {
   pboptions(type = "none")
-  hz <- zysnotize(d)$scalability
+  h <- zysno:::lv_errors_item_pair(d)$h
+  #h <- zysnotize(d)$scalability
   pboptions(type = "txt")
   cor <- cor(d)[1, 2]
   if (!is.na(cor)) {
         tetrachor <- polychoric(d, correct = FALSE)$rho[1, 2]
-        tetrachor_corrected <- polychoric(d)$rho[1, 2]
+# why does this not work?
+#        tetrachor_corrected <- tryCatch(
+#          {polychoric(d)$rho[1, 2]},
+#          warning = function(cond) {
+#            message(warning)
+#            return(NA)
+#          },
+#          error = function(cond) {
+#            message(cond)
+#            return(NA)
+#          })
   } else {
     tetrachor <- NA
     tetrachor_corrected <- NA
   }
-  return(c(cor, hz, tetrachor, tetrachor_corrected))
+  return(c(cor, h, tetrachor))#, tetrachor_corrected))
 }
 
 res <- xfun::cache_rds({
-  pblapply(seq(nrow(test)), function(x) get_hz(create_d(test[x, ])), cl = cores)
-}, file = "sim2", rerun = TRUE)
+  pblapply(seq(nrow(test)), function(x) get_values(create_d(test[x, ])), cl = 28)
+}, file = "sim2")
 
 resm <- matrix(unlist(res), ncol = 3, byrow = T)
 
