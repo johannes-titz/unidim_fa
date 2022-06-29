@@ -236,9 +236,10 @@ Problem with H value is that we need to find the error cells first, this takes s
 
 ```{r poly, cache = F}
 shelf(partitions)
-test <- t(compositions(n = 10, m = 16))
-# randomize to better estimate progress bar
-test <- test[sample.int(nrow(test)), ]
+test <- xfun::cache_rds(
+  {t(compositions(n = 10, m = 16))},
+  file = "partitions"
+)
 dim(test)
 create_d <- function(f) {
   cols <- colSums(matrix(f, nrow = 4))
@@ -281,9 +282,10 @@ res <- xfun::cache_rds({
   pblapply(seq(nrow(test)), function(x) get_values(create_d(test[x, ])), cl = 29)
 }, file = "sim2")
 
-resm <- matrix(unlist(res), ncol = 3, byrow = T)
+resm <- matrix(as.numeric(unlist(res)), ncol = 3, byrow = T)
 
 df <- apply(resm, 2, round, 2)
+# otherwise plotting is impossible
 df1 <- df[!duplicated(df[, 1:2]), ]
 df2 <- df[!duplicated(df[, c(1:3)]), ]
 df1 <- df1[df1[, 1] >= 0, ]
