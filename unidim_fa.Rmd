@@ -278,7 +278,7 @@ get_values <- function(d) {
 }
 
 res <- xfun::cache_rds({
-  pblapply(seq(nrow(test)), function(x) get_values(create_d(test[x, ])), cl = 28)
+  pblapply(seq(nrow(test)), function(x) get_values(create_d(test[x, ])), cl = 29)
 }, file = "sim2")
 
 resm <- matrix(unlist(res), ncol = 3, byrow = T)
