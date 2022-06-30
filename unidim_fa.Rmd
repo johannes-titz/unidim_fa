@@ -171,11 +171,11 @@ get_values <- function(d) {
         tetrachor_corrected <- tryCatch(
           {polychoric(d)$rho[1, 2]},
           warning = function(cond) {
-            message(warning)
+            #message(warning)
             return(NA)
           },
           error = function(cond) {
-            message(cond)
+            #message(cond)
             return(NA)
           })
   } else {
@@ -187,10 +187,7 @@ get_values <- function(d) {
 res <- xfun::cache_rds({
   pblapply(seq(nrow(test)), function(x) get_values(create_d(test[x, ])), cl = 29)
 }, file = "sim2", rerun = T)
-names(res) <- seq(nrow(test))
-
-resm <- matrix(as.numeric(unlist(res)), ncol = 3, byrow = TRUE)
-dim(resm)
+resm <- matrix(as.numeric(unlist(res)), ncol = 4, byrow = TRUE)
 resm <- apply(resm, 2, round, 2)
 df <- as.data.frame(resm)
 colnames(df) <- c("cor", "h", "tetrachor")
