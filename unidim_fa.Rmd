@@ -148,18 +148,21 @@ patterns <- table(apply(d, 1, paste, collapse = ""))
 
 Problem with H value is that we need to find the error cells first, this takes some additional time. But seems to be ok overall.
 
+It is better to use m=9 with more participants than m=16 with few.
+
 ```{r poly, cache = F}
 shelf(partitions)
+m <- 9
+sqm <- sqrt(m)
 test <- xfun::cache_rds(
-  {t(compositions(n = 10, m = 16))},
+  {t(compositions(n = 25, m = 9))},
   file = "partitions"
 )
 dim(test)
 create_d <- function(f) {
-  cols <- colSums(matrix(f, nrow = 4))
-  rows <- rowSums(matrix(f, nrow = 4))
-  v1 <- rep(1:4, cols)
-  v2 <- rep(rep(1:4, 4), f)
+  cols <- colSums(matrix(f, nrow = sqm))
+  v1 <- rep(1:sqm, cols)
+  v2 <- rep(rep(1:sqm, sqm), f)
   return(cbind(v1, v2))
 }
 get_values <- function(d) {
@@ -186,7 +189,7 @@ get_values <- function(d) {
 }
 res <- xfun::cache_rds({
   pblapply(seq(nrow(test)), function(x) get_values(create_d(test[x, ])), cl = 29)
-}, file = "sim2", rerun = T)
+}, file = "sim2", rerun = F)
 resm <- matrix(as.numeric(unlist(res)), ncol = 4, byrow = TRUE)
 resm <- apply(resm, 2, round, 2)
 df <- as.data.frame(resm)
@@ -206,6 +209,10 @@ plot(df2[, 3], df2[, 2])
 ```{r}
 ggplot(df1, aes(cor, h, alpha = 0.1)) + geom_point() + theme_classic()
 ggplot(df2, aes(tetrachor, h, alpha = 0.1)) + geom_point() + theme_classic()
+```
+
+```{r}
+by(df2$h, df2$tetrachor, max)
 ```
 
 ## FA model
